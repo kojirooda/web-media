@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__Desktop_Commander__list_directory",
+      "mcp__Desktop_Commander__create_directory",
+      "mcp__Desktop_Commander__read_file",
+      "WebSearch",
+      "mcp__Desktop_Commander__write_file",
+      "mcp__Desktop_Commander__get_file_info",
+      "mcp__Desktop_Commander__start_process"
+    ]
+  }
+}

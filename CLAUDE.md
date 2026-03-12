@@ -19,7 +19,7 @@
 - 構造化データ: Article schema 必須
 - 内部リンク: 関連記事3本以上
 ## ツール連携
-- 画像生成: Nano Banana MCP（Gemini Pro APIキー使用）
+- 画像生成: Antigravity（Gemini Pro使用）
 - デザイン: Canva MCP（Brand Kit 適用）
 - プロジェクト管理: Notion MCP
 - デプロイ: GitHub Actions
