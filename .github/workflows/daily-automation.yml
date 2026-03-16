@@ -1,0 +1,148 @@
+name: Daily Business Automation
+on:
+  schedule:
+    # 毎朝 06:00 JST (= 21:00 UTC 前日)
+    - cron: '0 21 * * *'
+  workflow_dispatch:
+    inputs:
+      task:
+        description: '実行タスク'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - content-only
+          - report-only
+          - saas-check-only
+
+jobs:
+  daily-content:
+    name: 記事生成・公開
+    runs-on: ubuntu-latest
+    if: github.event.inputs.task == 'all' || github.event.inputs.task == 'content-only' || github.event_name == 'schedule'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Generate daily content
+        run: |
+          claude --print "
+          コンテンツキュー（docs/content-queue.md）を確認し、
+          HIGH優先度の最初の記事を生成してください。
+
+          手順:
+          1. docs/content-queue.md を読む
+          2. docs/brand-voice.md を読む
+          3. 既存記事（content/drafts/）を確認して内部リンク候補を把握
+          4. HIGH優先度の記事を完全生成（本文・メタ情報・Article schema）
+          5. content/drafts/{slug}/article.md として保存
+          6. docs/content-queue.md のキューを更新（生成済みに移動）
+          " --allowedTools=Read,Write,Edit,Bash
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+      - name: Commit and push generated content
+        run: |
+          git config user.name "Claude Code Bot"
+          git config user.email "claude-bot@noreply.github.com"
+          git add -A
+          git diff --staged --quiet || git commit -m "feat: 日次コンテンツ自動生成 $(date '+%Y-%m-%d')"
+          git push origin HEAD
+
+  daily-report:
+    name: 日次レポート生成
+    runs-on: ubuntu-latest
+    needs: daily-content
+    if: always() && (github.event.inputs.task == 'all' || github.event.inputs.task == 'report-only' || github.event_name == 'schedule')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Generate daily report
+        run: |
+          claude --print "
+          本日（$(date '+%Y-%m-%d')）の日次レポートを生成してください。
+
+          内容:
+          1. docs/content-queue.md から生成済みコンテンツ数を確認
+          2. 以下の形式でレポートを docs/reports/daily-$(date '+%Y-%m-%d').md に保存:
+             - 本日の実行タスクサマリー
+             - コンテンツKPI（累計記事数等）
+             - 今日のコンテンツキュー状況
+             - 明日の予定タスク
+             - 要確認事項（あれば）
+          3. オーナー向けの要点を3行以内で冒頭に記載
+          " --allowedTools=Read,Write,Edit,Bash
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+      - name: Commit report
+        run: |
+          mkdir -p docs/reports
+          git config user.name "Claude Code Bot"
+          git config user.email "claude-bot@noreply.github.com"
+          git add -A
+          git diff --staged --quiet || git commit -m "docs: 日次レポート $(date '+%Y-%m-%d')"
+          git push origin HEAD
+
+  weekly-plan:
+    name: 週次コンテンツ計画（日曜のみ）
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check if Sunday
+        id: check-day
+        run: |
+          if [ "$(date +%u)" = "7" ]; then
+            echo "is_sunday=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_sunday=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Install Claude Code
+        if: steps.check-day.outputs.is_sunday == 'true'
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Update weekly content queue
+        if: steps.check-day.outputs.is_sunday == 'true'
+        run: |
+          claude --print "
+          来週のコンテンツキュー（docs/content-queue.md）を更新してください。
+
+          手順:
+          1. 現在のキューを確認
+          2. HIGH優先度を3記事補充（MEDIUM から昇格 or 新規追加）
+          3. 新規キーワード候補を検討（AIツール・副業・中小企業経営系）
+          4. キューを更新保存
+          5. 週次サマリーをコメントとして追記
+          " --allowedTools=Read,Write,Edit
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+      - name: Commit weekly plan
+        if: steps.check-day.outputs.is_sunday == 'true'
+        run: |
+          git config user.name "Claude Code Bot"
+          git config user.email "claude-bot@noreply.github.com"
+          git add -A
+          git diff --staged --quiet || git commit -m "plan: 週次コンテンツキュー更新 $(date '+%Y-%m-%d')"
+          git push origin HEAD
