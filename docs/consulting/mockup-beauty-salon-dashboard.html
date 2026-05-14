@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>AI管理ダッシュボード - hair salon ○○</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', sans-serif;
+      background: #e8e4de;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+      padding: 24px 0;
+    }
+
+    :root {
+      --navy:       #1e2a3a;
+      --gold:       #c9a96e;
+      --gold-light: #f0e6d3;
+      --bg:         #f5f3f0;
+      --card:       #ffffff;
+      --text:       #2c2c2c;
+      --muted:      #8a9bb0;
+      --success:    #4caf8a;
+      --warning:    #f0a04b;
+      --danger:     #e57373;
+      --border:     #e8e4de;
+    }
+
+    /* ── Phone shell ── */
+    .phone {
+      width: 390px;
+      min-height: 844px;
+      background: var(--bg);
+      border-radius: 44px;
+      overflow: hidden;
+      box-shadow: 0 30px 80px rgba(0,0,0,0.35), 0 0 0 10px #111;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* status bar */
+    .status-bar {
+      background: var(--navy);
+      padding: 14px 24px 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .status-time { color: white; font-size: 15px; font-weight: 600; }
+    .status-icons { color: white; font-size: 12px; letter-spacing: 2px; }
+
+    /* Header */
+    .header {
+      background: var(--navy);
+      color: white;
+      padding: 6px 20px 16px;
+    }
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+    .salon-name { font-size: 11px; color: var(--gold); letter-spacing: 0.8px; text-transform: uppercase; }
+    .header-date { font-size: 11px; color: var(--muted); }
+    .header-title { font-size: 20px; font-weight: 700; letter-spacing: -0.4px; }
+
+    /* Scrollable content */
+    .main {
+      flex: 1;
+      overflow-y: auto;
+      padding-bottom: 72px;
+      -webkit-overflow-scrolling: touch;
+    }
+    .main::-webkit-scrollbar { display: none; }
+
+    /* Screens */
+    .screen { display: none; }
+    .screen.active { display: block; }
+
+    /* Bottom Nav */
+    .bottom-nav {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      background: var(--card);
+      border-top: 1px solid var(--border);
+      display: flex;
+      padding-bottom: 8px;
+      z-index: 200;
+    }
+    .nav-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 10px 4px 4px;
+      cursor: pointer;
+      position: relative;
+      border: none;
+      background: none;
+      font-family: inherit;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .nav-icon { font-size: 22px; line-height: 1; margin-bottom: 3px; }
+    .nav-label { font-size: 10px; color: var(--muted); }
+    .nav-item.active .nav-label { color: var(--gold); font-weight: 700; }
+    .nav-badge {
+      position: absolute;
+      top: 6px;
+      right: calc(50% - 20px);
+      background: var(--danger);
+      color: white;
+      font-size: 9px;
+      font-weight: 700;
+      min-width: 16px;
+      height: 16px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 3px;
+    }
+
+    /* Alert Banner */
+    .alert-banner {
+      background: linear-gradient(135deg, #c9a96e22, #c9a96e0a);
+      border-left: 3px solid var(--gold);
+      margin: 14px 16px 8px;
+      padding: 10px 12px;
+      border-radius: 0 10px 10px 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .alert-icon { font-size: 18px; flex-shrink: 0; }
+    .alert-text { font-size: 12px; color: #7a6540; font-weight: 500; flex: 1; }
+    .alert-action {
+      background: var(--gold);
+      color: white;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 5px 10px;
+      border-radius: 20px;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    /* KPI Row */
+    .kpi-row {
+      display: flex;
+      gap: 10px;
+      padding: 6px 16px 14px;
+    }
+    .kpi-card {
+      flex: 1;
+      background: var(--card);
+      border-radius: 14px;
+      padding: 12px 8px;
+      text-align: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .kpi-label { font-size: 10px; color: var(--muted); margin-bottom: 4px; }
+    .kpi-value { font-size: 26px; font-weight: 800; color: var(--navy); line-height: 1; }
+    .kpi-value.gold   { color: var(--gold); }
+    .kpi-value.danger { color: var(--danger); }
+    .kpi-sub { font-size: 9px; color: var(--muted); margin-top: 2px; }
+
+    /* Section */
+    .section { margin-bottom: 18px; }
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 16px;
+      margin-bottom: 8px;
+    }
+    .section-title { font-size: 14px; font-weight: 700; color: var(--navy); }
+    .section-link { font-size: 12px; color: var(--gold); cursor: pointer; }
+
+    /* Appointment Card */
+    .appt-card {
+      background: var(--card);
+      margin: 0 16px 8px;
+      border-radius: 14px;
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .appt-time { font-size: 14px; font-weight: 800; color: var(--navy); min-width: 42px; text-align: center; }
+    .appt-time-sub { font-size: 10px; color: var(--muted); text-align: center; }
+    .appt-divider { width: 1px; height: 36px; background: var(--border); }
+    .appt-info { flex: 1; }
+    .appt-name { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+    .appt-service { font-size: 11px; color: var(--muted); }
+    .appt-badge { font-size: 10px; font-weight: 700; padding: 4px 9px; border-radius: 20px; white-space: nowrap; }
+    .badge-confirmed { background: #e8f5ee; color: #3a9e70; }
+    .badge-ai        { background: #e8f0ff; color: #5b7fe0; }
+    .badge-pending   { background: #fff3e8; color: var(--warning); }
+
+    /* Action Card */
+    .action-card {
+      background: var(--card);
+      margin: 0 16px 8px;
+      border-radius: 14px;
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      cursor: pointer;
+    }
+    .action-icon {
+      width: 38px; height: 38px;
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; flex-shrink: 0;
+    }
+    .action-icon.blue   { background: #eef2ff; }
+    .action-icon.green  { background: #edf8f3; }
+    .action-icon.orange { background: #fff5ec; }
+    .action-content { flex: 1; }
+    .action-title { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+    .action-desc  { font-size: 11px; color: var(--muted); }
+    .action-arrow { color: var(--muted); font-size: 18px; }
+
+    /* Tabs */
+    .tab-bar {
+      display: flex;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      padding: 0 12px;
+    }
+    .tab {
+      flex: 1; text-align: center;
+      padding: 12px 2px;
+      font-size: 12px; color: var(--muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+    }
+    .tab.active { color: var(--navy); font-weight: 700; border-bottom-color: var(--gold); }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* SNS Post Card */
+    .post-card {
+      background: var(--card);
+      margin: 10px 16px;
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .post-header {
+      display: flex; align-items: center;
+      padding: 10px 14px; gap: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .post-day {
+      font-size: 11px; font-weight: 700;
+      padding: 4px 10px; border-radius: 20px;
+      background: var(--muted); color: white;
+    }
+    .post-day.pending { background: var(--gold); }
+    .post-day.posted  { background: var(--success); }
+    .post-platform { font-size: 12px; color: var(--muted); flex: 1; }
+    .post-status { font-size: 11px; font-weight: 600; }
+    .post-status.pending  { color: var(--warning); }
+    .post-status.approved { color: var(--success); }
+    .post-status.posted   { color: var(--muted); }
+    .post-body { padding: 12px 14px; }
+    .post-image-placeholder {
+      background: linear-gradient(135deg, #f0e8e0, #e8d4c0);
+      border-radius: 10px;
+      height: 90px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 32px; margin-bottom: 10px;
+    }
+    .post-caption { font-size: 12px; color: #555; line-height: 1.7; margin-bottom: 10px; }
+    .post-actions { display: flex; gap: 8px; }
+    .btn-approve {
+      flex: 1; background: var(--navy); color: white;
+      border: none; border-radius: 10px;
+      padding: 10px; font-size: 13px; font-weight: 700;
+      cursor: pointer; font-family: inherit;
+    }
+    .btn-edit {
+      background: white; color: var(--navy);
+      border: 1.5px solid var(--border);
+      border-radius: 10px; padding: 10px 16px;
+      font-size: 13px; font-weight: 600;
+      cursor: pointer; font-family: inherit;
+    }
+    .post-stats { display: flex; gap: 16px; padding: 0 14px 12px; }
+    .post-stat { font-size: 12px; color: var(--muted); }
+    .post-stat span { color: var(--navy); font-weight: 700; }
+
+    /* Karte Card */
+    .karte-card {
+      background: var(--card);
+      margin: 10px 16px;
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .karte-header {
+      background: var(--navy); color: white;
+      padding: 14px 16px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .karte-avatar {
+      width: 40px; height: 40px;
+      background: var(--gold); border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; font-weight: 800; flex-shrink: 0;
+    }
+    .karte-name { font-size: 16px; font-weight: 700; margin-bottom: 3px; }
+    .karte-time { font-size: 11px; color: var(--gold); }
+    .karte-body { padding: 14px 16px; }
+    .karte-row { display: flex; gap: 10px; margin-bottom: 8px; }
+    .karte-label { font-size: 11px; color: var(--muted); min-width: 60px; padding-top: 1px; }
+    .karte-value { font-size: 12px; color: var(--text); flex: 1; line-height: 1.6; }
+    .karte-ng {
+      background: #fff2f2; border-radius: 8px;
+      padding: 8px 12px; font-size: 11px; color: var(--danger);
+      margin-top: 6px; font-weight: 600;
+    }
+    .karte-suggestion {
+      background: linear-gradient(135deg, #c9a96e14, #c9a96e06);
+      border: 1px solid #c9a96e38;
+      border-radius: 10px; padding: 10px 12px; margin-top: 10px;
+    }
+    .karte-suggestion-label {
+      font-size: 10px; color: var(--gold); font-weight: 800;
+      letter-spacing: 0.6px; text-transform: uppercase; margin-bottom: 5px;
+    }
+    .karte-suggestion-text { font-size: 12px; color: #7a6540; line-height: 1.7; }
+
+    /* Report */
+    .report-period {
+      display: flex; align-items: center; justify-content: center;
+      gap: 20px; padding: 14px 16px;
+      background: var(--card); border-bottom: 1px solid var(--border);
+    }
+    .period-arrow { color: var(--muted); font-size: 22px; cursor: pointer; line-height: 1; }
+    .period-label { font-size: 16px; font-weight: 700; color: var(--navy); }
+
+    .metric-row { display: flex; gap: 10px; margin: 10px 16px 0; }
+    .metric-card-sm {
+      flex: 1; background: var(--card); border-radius: 14px;
+      padding: 14px 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .metric-title { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+    .metric-value { font-size: 26px; font-weight: 800; color: var(--navy); margin-bottom: 4px; }
+    .metric-diff { font-size: 11px; font-weight: 600; }
+    .metric-diff.up   { color: var(--success); }
+    .metric-diff.down { color: var(--danger); }
+
+    .chart-card {
+      background: var(--card); margin: 10px 16px 0;
+      border-radius: 14px; padding: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .chart-title { font-size: 12px; color: var(--muted); margin-bottom: 14px; font-weight: 600; }
+    .bar-group { margin-bottom: 10px; }
+    .bar-label {
+      font-size: 11px; color: var(--text);
+      display: flex; justify-content: space-between; margin-bottom: 5px;
+    }
+    .bar-track { background: var(--bg); border-radius: 6px; height: 8px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 6px; background: var(--gold); transition: width 0.4s ease; }
+    .bar-fill.navy    { background: var(--navy); }
+    .bar-fill.faint   { background: #c9a96e66; }
+
+    .dm-card {
+      background: #fff8f8; border: 1px solid #ffd8d8;
+      margin: 8px 16px; border-radius: 14px; padding: 14px;
+    }
+    .dm-tag { font-size: 10px; color: var(--danger); font-weight: 800; margin-bottom: 6px; }
+    .dm-tag.orange { color: var(--warning); }
+    .dm-sender { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+    .dm-message { font-size: 12px; color: #555; line-height: 1.7; margin-bottom: 12px; }
+
+    .log-box {
+      margin: 0 16px; background: white; border-radius: 12px;
+      padding: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .log-title { font-size: 11px; color: var(--muted); margin-bottom: 8px; font-weight: 600; }
+    .log-item { font-size: 11px; color: #666; line-height: 2; }
+
+    .week-grid {
+      margin: 12px 16px 0; background: white; border-radius: 14px;
+      overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .week-grid-header { display: flex; border-bottom: 1px solid var(--border); }
+    .week-grid-body   { display: flex; }
+    .week-cell {
+      flex: 1; text-align: center; padding: 10px 4px;
+      font-size: 12px; font-weight: 600; color: var(--navy);
+    }
+    .week-cell.today { background: #c9a96e11; color: var(--gold); }
+    .week-count { font-size: 20px; font-weight: 800; }
+    .week-label { font-size: 10px; color: var(--muted); }
+
+    .page-top { padding-top: 14px; }
+  </style>
+</head>
+<body>
+
+<div class="phone">
+
+  <!-- Status Bar -->
+  <div class="status-bar">
+    <span class="status-time">9:41</span>
+    <span class="status-icons">●●● WiFi ▮▮▮</span>
+  </div>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-top">
+      <span class="salon-name">hair salon ○○</span>
+      <span class="header-date">2026年3月17日（火）</span>
+    </div>
+    <div class="header-title" id="header-title">ダッシュボード</div>
+  </div>
+
+  <!-- Scrollable Main -->
+  <div class="main">
+
+    <!-- ════════════════════════════════════
+         SCREEN 1: ホーム
+    ════════════════════════════════════ -->
+    <div class="screen active" id="screen-home">
+      <div class="page-top">
+
+        <div class="alert-banner">
+          <span class="alert-icon">📸</span>
+          <span class="alert-text">今週のSNS投稿承認が2件あります</span>
+          <span class="alert-action" onclick="switchScreen('sns')">確認する</span>
+        </div>
+
+        <div class="kpi-row">
+          <div class="kpi-card">
+            <div class="kpi-label">今日の予約</div>
+            <div class="kpi-value">4</div>
+            <div class="kpi-sub">件</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">未対応DM</div>
+            <div class="kpi-value danger">2</div>
+            <div class="kpi-sub">要対応</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">今週投稿</div>
+            <div class="kpi-value gold">2/7</div>
+            <div class="kpi-sub">承認待ち</div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-header">
+            <span class="section-title">今日の予約</span>
+            <span class="section-link" onclick="switchScreen('reservations')">すべて見る →</span>
+          </div>
+
+          <div class="appt-card">
+            <div>
+              <div class="appt-time">10:00</div>
+              <div class="appt-time-sub">60分</div>
+            </div>
+            <div class="appt-divider"></div>
+            <div class="appt-info">
+              <div class="appt-name">田中 恵 様</div>
+              <div class="appt-service">カット + カラー</div>
+            </div>
+            <span class="appt-badge badge-confirmed">確定</span>
+          </div>
+
+          <div class="appt-card">
+            <div>
+              <div class="appt-time">13:00</div>
+              <div class="appt-time-sub">90分</div>
+            </div>
+            <div class="appt-divider"></div>
+            <div class="appt-info">
+              <div class="appt-name">山本 さくら 様</div>
+              <div class="appt-service">縮毛矯正</div>
+            </div>
+            <span class="appt-badge badge-confirmed">確定</span>
+          </div>
+
+          <div class="appt-card">
+            <div>
+              <div class="appt-time">15:30</div>
+              <div class="appt-time-sub">45分</div>
+            </div>
+            <div class="appt-divider"></div>
+            <div class="appt-info">
+              <div class="appt-name">鈴木 美咲 様 🆕</div>
+              <div class="appt-service">カット（初回）</div>
+            </div>
+            <span class="appt-badge badge-ai">AI受付</span>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-header">
+            <span class="section-title">要対応アクション</span>
+          </div>
+
+          <div class="action-card" onclick="switchScreen('reservations')">
+            <div class="action-icon orange">📩</div>
+            <div class="action-content">
+              <div class="action-title">未対応DM が 2件あります</div>
+              <div class="action-desc">複雑な質問のためAIが転送しました</div>
+            </div>
+            <span class="action-arrow">›</span>
+          </div>
+
+          <div class="action-card" onclick="switchScreen('sns')">
+            <div class="action-icon blue">📸</div>
+            <div class="action-content">
+              <div class="action-title">SNS投稿の承認（水・木）</div>
+              <div class="action-desc">投稿案が準備できています</div>
+            </div>
+            <span class="action-arrow">›</span>
+          </div>
+
+          <div class="action-card">
+            <div class="action-icon green">💌</div>
+            <div class="action-content">
+              <div class="action-title">リピートフォロー 自動送信 5件</div>
+              <div class="action-desc">本日 12:00 に自動送信されます</div>
+            </div>
+            <span class="action-arrow">›</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════
+         SCREEN 2: 予約管理
+    ════════════════════════════════════ -->
+    <div class="screen" id="screen-reservations">
+      <div class="tab-bar">
+        <div class="tab active" onclick="switchTab(this,'tab-today')">今日</div>
+        <div class="tab" onclick="switchTab(this,'tab-tomorrow')">明日</div>
+        <div class="tab" onclick="switchTab(this,'tab-week')">今週</div>
+        <div class="tab" onclick="switchTab(this,'tab-dm')">DM <span style="color:var(--danger);font-weight:800;">2</span></div>
+      </div>
+
+      <!-- 今日 -->
+      <div class="tab-content active" id="tab-today">
+        <div style="padding: 12px 0;">
+          <div class="appt-card">
+            <div><div class="appt-time">10:00</div><div class="appt-time-sub">60分</div></div>
+            <div class="appt-divider"></div>
+            <div class="appt-info">
+              <div class="appt-name">田中 恵 様</div>
+              <div class="appt-service">カット + カラー · 担当: 佐藤</div>
+            </div>
+            <span class="appt-badge badge-confirmed">確定</span>
+          </div>
+          <div class="appt-card">
+            <div><div class="appt-time">11:30</div><div class="appt-time-sub">45分</div></div>
+            <div class="appt-divider"></div>
+            <div class="appt-info">
+              <div class="appt-name">伊藤 玲子 様</div>
+              <div class="appt-service">カット · 担当: 中村</div>
+            </div>
+            <span class="appt-badge badge-confirmed">確定</span>
+          </div>
+          <div class="appt-card">
+            <div><div class="appt-time">13:00</div><div class="appt-time-sub">90分</div></div>
+            <div class="appt-divider"></div>
+            <div class="appt-info">
+              <div class="appt-name">山本 さくら 様</div>
+              <div class="appt-service">縮毛矯正 · 担当: 佐藤</div>
+            </div>
+            <span class="appt-badge badge-confirmed">確定</span>
+          </div>
+          <div class="appt-card">
+            <div><div class="appt-time">15:30</div><div class="appt-time-sub">45分</div></div>
+            <div class="appt-divider"></div>
+            <div class="appt-info">
+              <div class="appt-name">鈴木 美咲 様 🆕</div>
+              <div class="appt-service">カット（初回）· 担当: 未定</div>
+            </div>
+            <span class="appt-badge badge-ai">AI受付</span>
+          </div>
+          <div style="padding: 4px 16px 0;">
+            <div class="log-box">
+              <div class="log-title">📋 AI自動返信ログ（本日）</div>
+              <div class="log-item">
+                09:12 — 鈴木様の予約をAIが自動受付<br>
+                08:45 — 予約リマインドを3名に自動送信<br>
+                08:00 — 前日確認メッセージを2名に送信
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 明日 -->
+      <div class="tab-content" id="tab-tomorrow">
+        <div style="padding: 12px 0;">
+          <div class="appt-card">
+            <div><div class="appt-time">11:00</div><div class="appt-time-sub">60分</div></div>
+            <div class="appt-divider"></div>
+            <div class="appt-info">
+              <div class="appt-name">佐々木 和子 様</div>
+              <div class="appt-service">パーマ · 担当: 佐藤</div>
+            </div>
+            <span class="appt-badge badge-confirmed">確定</span>
+          </div>
+          <div class="appt-card">
+            <div><div class="appt-time">14:00</div><div class="appt-time-sub">45分</div></div>
+            <div class="appt-divider"></div>
+            <div class="appt-info">
+              <div class="appt-name">加藤 麻衣 様</div>
+              <div class="appt-service">カット + トリートメント</div>
+            </div>
+            <span class="appt-badge badge-pending">未確定</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 今週 -->
+      <div class="tab-content" id="tab-week">
+        <div style="padding: 12px 0;">
+          <div style="text-align:center; padding: 6px 0 10px; font-size:13px; color:var(--muted);">
+            今週の予約合計
+            <span style="font-size:28px; font-weight:800; color:var(--navy); display:block; line-height:1.2;">18件</span>
+          </div>
+          <div class="week-grid">
+            <div class="week-grid-header">
+              <div class="week-cell">月</div>
+              <div class="week-cell today">火</div>
+              <div class="week-cell">水</div>
+              <div class="week-cell">木</div>
+              <div class="week-cell">金</div>
+              <div class="week-cell">土</div>
+            </div>
+            <div class="week-grid-body">
+              <div class="week-cell"><div class="week-count">3</div><div class="week-label">件</div></div>
+              <div class="week-cell today"><div class="week-count">4</div><div class="week-label">件</div></div>
+              <div class="week-cell"><div class="week-count">2</div><div class="week-label">件</div></div>
+              <div class="week-cell"><div class="week-count">3</div><div class="week-label">件</div></div>
+              <div class="week-cell"><div class="week-count">2</div><div class="week-label">件</div></div>
+              <div class="week-cell"><div class="week-count">4</div><div class="week-label">件</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 未対応DM -->
+      <div class="tab-content" id="tab-dm">
+        <div style="padding: 12px 0;">
+          <div class="dm-card">
+            <div class="dm-tag">⚠ AIが転送 · アレルギー相談</div>
+            <div class="dm-sender">西村 優子 様 より</div>
+            <div class="dm-message">「カラーをしたいのですが、以前他のサロンでかぶれた経験があります。パッチテストはできますか？」</div>
+            <div class="post-actions">
+              <button class="btn-approve" style="font-size:12px; padding:9px;">返信する</button>
+              <button class="btn-edit" style="font-size:12px; padding:9px;">後で対応</button>
+            </div>
+          </div>
+          <div class="dm-card">
+            <div class="dm-tag orange">⚠ AIが転送 · ブライダル相談</div>
+            <div class="dm-sender">中島 あかね 様 より</div>
+            <div class="dm-message">「来年5月に結婚式があります。ブライダルヘアのご相談はできますか？料金も教えていただきたいです」</div>
+            <div class="post-actions">
+              <button class="btn-approve" style="font-size:12px; padding:9px;">返信する</button>
+              <button class="btn-edit" style="font-size:12px; padding:9px;">後で対応</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════
+         SCREEN 3: SNS管理
+    ════════════════════════════════════ -->
+    <div class="screen" id="screen-sns">
+      <div style="background:white; padding:12px 16px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <div style="font-size:13px; color:var(--muted);">今週のスケジュール</div>
+        <div style="font-size:11px; background:var(--gold-light); color:#7a6540; padding:5px 10px; border-radius:20px; font-weight:700;">承認待ち 2件</div>
+      </div>
+
+      <!-- 承認待ち -->
+      <div class="post-card">
+        <div class="post-header">
+          <span class="post-day pending">水 3/18</span>
+          <span class="post-platform">Instagram</span>
+          <span class="post-status pending">● 承認待ち</span>
+        </div>
+        <div class="post-body">
+          <div class="post-image-placeholder">✂️</div>
+          <div class="post-caption">くせ毛でお悩みだったお客様。縮毛矯正＋毛先カールで、やわらかいストレートに仕上げました。梅雨の季節も毎朝のスタイリングがぐっと楽になります ☁<br><br>▷ご予約はプロフィールのLINEから<br>#縮毛矯正 #くせ毛 #美容室〇〇</div>
+          <div class="post-actions">
+            <button class="btn-approve">✓ 承認する</button>
+            <button class="btn-edit">編集</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="post-card">
+        <div class="post-header">
+          <span class="post-day pending">木 3/19</span>
+          <span class="post-platform">Instagram</span>
+          <span class="post-status pending">● 承認待ち</span>
+        </div>
+        <div class="post-body">
+          <div class="post-image-placeholder">🌸</div>
+          <div class="post-caption">春のおすすめカラー特集。ブリーチなしで透明感を出せるアッシュブラウンが今季人気です。ダメージが気になる方にもおすすめ 🍀<br><br>▷ご予約はプロフィールのLINEから<br>#春カラー #アッシュブラウン #美容室〇〇</div>
+          <div class="post-actions">
+            <button class="btn-approve">✓ 承認する</button>
+            <button class="btn-edit">編集</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 投稿済み -->
+      <div class="post-card">
+        <div class="post-header">
+          <span class="post-day posted">月 3/16</span>
+          <span class="post-platform">Instagram</span>
+          <span class="post-status posted">投稿済み</span>
+        </div>
+        <div class="post-stats">
+          <span class="post-stat">❤️ <span>42</span></span>
+          <span class="post-stat">💬 <span>3</span></span>
+          <span class="post-stat">👁 <span>312</span></span>
+        </div>
+      </div>
+
+      <div class="post-card" style="margin-bottom:16px;">
+        <div class="post-header">
+          <span class="post-day posted">火 3/17</span>
+          <span class="post-platform">Instagram</span>
+          <span class="post-status posted">投稿済み</span>
+        </div>
+        <div class="post-stats">
+          <span class="post-stat">❤️ <span>67</span></span>
+          <span class="post-stat">💬 <span>8</span></span>
+          <span class="post-stat">👁 <span>489</span></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════
+         SCREEN 4: 顧客カルテ
+    ════════════════════════════════════ -->
+    <div class="screen" id="screen-karte">
+      <div style="background:white; padding:12px 16px; border-bottom:1px solid var(--border);">
+        <div style="font-size:13px; color:var(--muted);">本日来店予定 <strong style="color:var(--navy);">4名</strong></div>
+      </div>
+
+      <div style="padding: 10px 0 16px;">
+
+        <div class="karte-card">
+          <div class="karte-header">
+            <div class="karte-avatar">田</div>
+            <div>
+              <div class="karte-name">田中 恵 様</div>
+              <div class="karte-time">10:00 · カット + カラー · 60分</div>
+            </div>
+          </div>
+          <div class="karte-body">
+            <div class="karte-row">
+              <span class="karte-label">前回施術</span>
+              <span class="karte-value">ハイライト（3ヶ月前）</span>
+            </div>
+            <div class="karte-row">
+              <span class="karte-label">お好み</span>
+              <span class="karte-value">ナチュラル・細めのハイライト・透明感重視</span>
+            </div>
+            <div class="karte-row">
+              <span class="karte-label">来店回数</span>
+              <span class="karte-value">12回（2年4ヶ月のご常連）</span>
+            </div>
+            <div class="karte-ng">⚠ NG: 強い香りのトリートメント（前回も要注意）</div>
+            <div class="karte-suggestion">
+              <div class="karte-suggestion-label">AI 提案</div>
+              <div class="karte-suggestion-text">グロスカラーで今回は色味を足すと喜ばれやすいタイミングです。前回「まとまりが出た」と満足されていたため、ダメージケアとセット提案が効果的です。</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="karte-card">
+          <div class="karte-header">
+            <div class="karte-avatar">鈴</div>
+            <div>
+              <div class="karte-name">鈴木 美咲 様 🆕</div>
+              <div class="karte-time">15:30 · カット（初回）· 45分</div>
+            </div>
+          </div>
+          <div class="karte-body">
+            <div class="karte-row">
+              <span class="karte-label">来店歴</span>
+              <span class="karte-value">初回</span>
+            </div>
+            <div class="karte-row">
+              <span class="karte-label">ご要望</span>
+              <span class="karte-value">カウンセリングシートより: 肩上のボブ、軽め仕上げ希望</span>
+            </div>
+            <div class="karte-row">
+              <span class="karte-label">流入経路</span>
+              <span class="karte-value">Instagram → LINE予約（AI自動受付）</span>
+            </div>
+            <div class="karte-suggestion">
+              <div class="karte-suggestion-label">AI 提案</div>
+              <div class="karte-suggestion-text">Instagramのビフォーアフター投稿からの流入のため、施術後の写真共有の許可を取ると素材が得られます。次回来店につながるよう、カウンセリングを丁寧に。</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════
+         SCREEN 5: レポート
+    ════════════════════════════════════ -->
+    <div class="screen" id="screen-report">
+      <div class="report-period">
+        <span class="period-arrow">‹</span>
+        <span class="period-label">2026年 3月</span>
+        <span class="period-arrow">›</span>
+      </div>
+
+      <div style="padding: 0 0 16px;">
+        <div class="metric-row">
+          <div class="metric-card-sm">
+            <div class="metric-title">月間予約数</div>
+            <div class="metric-value">78</div>
+            <div class="metric-diff up">↑ 前月比 +12件</div>
+          </div>
+          <div class="metric-card-sm">
+            <div class="metric-title">リピート率</div>
+            <div class="metric-value">38<span style="font-size:16px;">%</span></div>
+            <div class="metric-diff up">↑ 先月 22% → 改善</div>
+          </div>
+        </div>
+
+        <div class="metric-row">
+          <div class="metric-card-sm">
+            <div class="metric-title">AI自動受付</div>
+            <div class="metric-value">31</div>
+            <div class="metric-diff" style="color:var(--muted);">件 / 今月</div>
+          </div>
+          <div class="metric-card-sm">
+            <div class="metric-title">フォロワー数</div>
+            <div class="metric-value">1,284</div>
+            <div class="metric-diff up">↑ 先月比 +142</div>
+          </div>
+        </div>
+
+        <div class="chart-card" style="margin-top:10px;">
+          <div class="chart-title">週別予約数（今月）</div>
+          <div class="bar-group">
+            <div class="bar-label"><span>第1週</span><span>18件</span></div>
+            <div class="bar-track"><div class="bar-fill" style="width:60%"></div></div>
+          </div>
+          <div class="bar-group">
+            <div class="bar-label"><span>第2週</span><span>22件</span></div>
+            <div class="bar-track"><div class="bar-fill" style="width:73%"></div></div>
+          </div>
+          <div class="bar-group">
+            <div class="bar-label"><span>第3週</span><span>24件</span></div>
+            <div class="bar-track"><div class="bar-fill" style="width:80%"></div></div>
+          </div>
+          <div class="bar-group">
+            <div class="bar-label"><span>第4週（途中）</span><span>14件</span></div>
+            <div class="bar-track"><div class="bar-fill faint" style="width:47%"></div></div>
+          </div>
+        </div>
+
+        <div class="chart-card" style="margin-top:10px;">
+          <div class="chart-title">AI自動化による削減時間（今月）</div>
+          <div class="bar-group">
+            <div class="bar-label"><span>予約対応</span><span>-18h</span></div>
+            <div class="bar-track"><div class="bar-fill navy" style="width:80%"></div></div>
+          </div>
+          <div class="bar-group">
+            <div class="bar-label"><span>Instagram 運用</span><span>-10h</span></div>
+            <div class="bar-track"><div class="bar-fill navy" style="width:56%"></div></div>
+          </div>
+          <div class="bar-group">
+            <div class="bar-label"><span>リピートフォロー</span><span>-4h</span></div>
+            <div class="bar-track"><div class="bar-fill navy" style="width:22%"></div></div>
+          </div>
+          <div style="margin-top:14px; padding-top:12px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:12px; color:var(--muted);">合計削減時間（今月）</span>
+            <span style="font-size:22px; font-weight:800; color:var(--navy);">32h</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end .main -->
+
+  <!-- Bottom Navigation -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" onclick="switchScreen('home')" id="nav-home">
+      <span class="nav-icon">🏠</span>
+      <span class="nav-label">ホーム</span>
+    </button>
+    <button class="nav-item" onclick="switchScreen('reservations')" id="nav-reservations">
+      <span class="nav-icon">📅</span>
+      <span class="nav-label">予約</span>
+      <span class="nav-badge">2</span>
+    </button>
+    <button class="nav-item" onclick="switchScreen('sns')" id="nav-sns">
+      <span class="nav-icon">📸</span>
+      <span class="nav-label">SNS</span>
+      <span class="nav-badge">2</span>
+    </button>
+    <button class="nav-item" onclick="switchScreen('karte')" id="nav-karte">
+      <span class="nav-icon">📋</span>
+      <span class="nav-label">カルテ</span>
+    </button>
+    <button class="nav-item" onclick="switchScreen('report')" id="nav-report">
+      <span class="nav-icon">📊</span>
+      <span class="nav-label">レポート</span>
+    </button>
+  </nav>
+
+</div><!-- end .phone -->
+
+<script>
+  const screenTitles = {
+    home:         'ダッシュボード',
+    reservations: '予約管理',
+    sns:          'SNS管理',
+    karte:        '顧客カルテ',
+    report:       'レポート'
+  };
+
+  function switchScreen(name) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('screen-' + name).classList.add('active');
+    document.getElementById('nav-' + name).classList.add('active');
+    document.getElementById('header-title').textContent = screenTitles[name];
+    document.querySelector('.main').scrollTop = 0;
+  }
+
+  function switchTab(el, tabId) {
+    const bar = el.closest('.tab-bar');
+    bar.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+    const screen = el.closest('.screen');
+    screen.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.getElementById(tabId).classList.add('active');
+  }
+</script>
+
+</body>
+</html>
